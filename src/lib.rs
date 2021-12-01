@@ -36,12 +36,10 @@ mod tests {
     fn day1_problem1_real() {
         let file = File::open(Path::new("data/day1-1")).unwrap();
         let reader = BufReader::new(file);
-        let mut input = Vec::new();
-        for line in reader.lines() {
-            let line = line.unwrap();
-            let line_value: i32 = line.parse().unwrap();
-            input.push(line_value);
-        }
+        let input = reader
+            .lines()
+            .map(|line| line.unwrap().parse::<i32>().unwrap())
+            .collect::<Vec<i32>>();
 
         assert_eq!(day1_problem1(input), 1532);
     }
@@ -50,12 +48,10 @@ mod tests {
     fn day1_problem2_real() {
         let file = File::open(Path::new("data/day1-1")).unwrap();
         let reader = BufReader::new(file);
-        let mut input = Vec::new();
-        for line in reader.lines() {
-            let line = line.unwrap();
-            let line_value: i32 = line.parse().unwrap();
-            input.push(line_value);
-        }
+        let input = reader
+            .lines()
+            .map(|line| line.unwrap().parse::<i32>().unwrap())
+            .collect::<Vec<i32>>();
 
         assert_eq!(day1_problem2(input), 1571);
     }
