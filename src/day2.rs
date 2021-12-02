@@ -17,6 +17,23 @@ pub fn problem1(directions: &[Direction]) -> i32 {
     horizontal * depth
 }
 
+pub fn problem2(directions: &[Direction]) -> i32 {
+    let mut horizontal = 0;
+    let mut depth = 0;
+    let mut aim = 0;
+    for direction in directions {
+        match direction {
+            Direction::Forward(f) => {
+                horizontal += f;
+                depth += aim * f
+            },
+            Direction::Down(d) => aim += d,
+            Direction::Up(u) => aim -= u,
+        }
+    }
+    horizontal * depth
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::{BufReader, BufRead};
@@ -40,11 +57,10 @@ mod tests {
         assert_eq!(problem1(&directions), 150);
     }
 
-    #[test]
-    fn problem1_real() {
+    fn load_data() -> Vec<Direction> {
         let file = File::open(Path::new(DATA_PATH)).unwrap();
         let reader = BufReader::new(file);
-        let input = reader
+        reader
             .lines()
             .map(|line| line
                 .unwrap()
@@ -57,7 +73,18 @@ mod tests {
                 ["up", u] => Some(Direction::Up(u.parse::<i32>().unwrap())),
                 _ => None,
             })
-            .collect::<Vec<Direction>>();
+            .collect()
+    }
+
+    #[test]
+    fn problem1_real() {
+        let input = load_data();
         assert_eq!(problem1(input.as_slice()), 1636725);
+    }
+
+    #[test]
+    fn problem2_real() {
+        let input = load_data();
+        assert_eq!(problem2(input.as_slice()), 1872757425);
     }
 }
