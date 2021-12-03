@@ -26,7 +26,7 @@ pub fn problem2(directions: &[Direction]) -> i32 {
             Direction::Forward(f) => {
                 horizontal += f;
                 depth += aim * f
-            },
+            }
             Direction::Down(d) => aim += d,
             Direction::Up(u) => aim -= u,
         }
@@ -36,9 +36,9 @@ pub fn problem2(directions: &[Direction]) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{BufReader, BufRead};
-    use std::path::Path;
     use std::fs::File;
+    use std::io::{BufRead, BufReader};
+    use std::path::Path;
 
     use super::*;
 
@@ -62,11 +62,12 @@ mod tests {
         let reader = BufReader::new(file);
         reader
             .lines()
-            .map(|line| line
-                .unwrap()
-                .split(' ')
-                .map(|split| split.to_string())
-                .collect::<Vec<String>>())
+            .map(|line| {
+                line.unwrap()
+                    .split(' ')
+                    .map(|split| split.to_string())
+                    .collect::<Vec<String>>()
+            })
             .filter_map(|strings| match [strings[0].as_str(), strings[1].as_str()] {
                 ["forward", f] => Some(Direction::Forward(f.parse::<i32>().unwrap())),
                 ["down", d] => Some(Direction::Down(d.parse::<i32>().unwrap())),

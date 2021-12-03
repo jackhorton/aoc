@@ -20,10 +20,10 @@ pub fn problem2(input: Vec<i32>) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{BufReader, BufRead};
-    use std::path::Path;
-    use std::fs::File;
     use super::*;
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+    use std::path::Path;
 
     const DATA_PATH: &'static str = "data/day1";
 
