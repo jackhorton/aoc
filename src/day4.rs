@@ -6,73 +6,134 @@ use std::collections::HashMap;
 const ROWS: usize = 5;
 const COLUMNS: usize = 5;
 
-pub fn problem1(boards: Vec<Vec<u8>>, draws: Vec<u8>) -> u32 {
+#[derive(Clone)]
+struct CompiledBoards {
     // key = bingo mask, value = board index
-    let mut bingo_masks: HashMap<u128, usize> =
-        HashMap::with_capacity(boards.len() * ROWS * COLUMNS);
-    let mut board_value_masks: Vec<u128> = Vec::with_capacity(boards.len());
+    pub bingo_masks: HashMap<u128, usize>,
+    pub value_masks: Vec<u128>,
+}
 
-    for (board_index, board) in boards.iter().enumerate() {
-        let mut board_value_mask = 0u128;
-        assert_eq!(board.len(), ROWS * COLUMNS);
+impl CompiledBoards {
+    pub fn from_boards(boards: Vec<Vec<u8>>) -> Self {
+        let mut bingo_masks: HashMap<u128, usize> =
+            HashMap::with_capacity(boards.len() * ROWS * COLUMNS);
+        let mut value_masks: Vec<u128> = Vec::with_capacity(boards.len());
+        for (board_index, board) in boards.iter().enumerate() {
+            let mut board_value_mask = 0u128;
+            assert_eq!(board.len(), ROWS * COLUMNS);
 
-        let row_bingos = board
-            .chunks_exact(ROWS)
-            .map(|chunk| chunk.iter().fold(0u128, |acc, elem| acc | (1 << elem)));
+            let row_bingos = board
+                .chunks_exact(ROWS)
+                .map(|chunk| chunk.iter().fold(0u128, |acc, elem| acc | (1 << elem)));
 
-        for row_bingo in row_bingos {
-            assert_eq!(board_value_mask & row_bingo, 0);
-            board_value_mask |= row_bingo;
-            bingo_masks.insert(row_bingo, board_index);
+            for row_bingo in row_bingos {
+                assert_eq!(board_value_mask & row_bingo, 0);
+                board_value_mask |= row_bingo;
+                bingo_masks.insert(row_bingo, board_index);
+            }
+
+            let column_bingos = (0..COLUMNS).map(|col| {
+                board
+                    .iter()
+                    .skip(col)
+                    .step_by(COLUMNS)
+                    .fold(0u128, |acc, elem| acc | (1 << elem))
+            });
+
+            for column_bingo in column_bingos {
+                // we don't need to add these to board_value_mask, since every number on the board
+                // has already been added by adding each row above.
+                bingo_masks.insert(column_bingo, board_index);
+            }
+
+            value_masks.push(board_value_mask);
         }
 
-        let column_bingos = (0..COLUMNS).map(|col| {
-            board
-                .iter()
-                .skip(col)
-                .step_by(COLUMNS)
-                .fold(0u128, |acc, elem| acc | (1 << elem))
-        });
-
-        for column_bingo in column_bingos {
-            // we don't need to add these to board_value_mask, since every number on the board
-            // has already been added by adding each row above.
-            bingo_masks.insert(column_bingo, board_index);
+        CompiledBoards {
+            bingo_masks,
+            value_masks,
         }
-
-        board_value_masks.push(board_value_mask);
     }
+}
+
+fn sum_unmarked_values(
+    compiled_boards: &CompiledBoards,
+    draw_mask: u128,
+    winning_board_index: &usize,
+    draw: u8,
+) -> u32 {
+    let undrawn_mask = !draw_mask;
+    let board_value_mask = compiled_boards.value_masks[*winning_board_index];
+    let board_undrawn_value_mask = board_value_mask & undrawn_mask;
+    let unmarked_sum = (0..100).fold(0u32, |acc, elem| {
+        if board_undrawn_value_mask & (1 << elem) != 0 {
+            acc + elem
+        } else {
+            acc
+        }
+    });
+
+    unmarked_sum * draw as u32
+}
+
+pub fn problem1(boards: Vec<Vec<u8>>, draws: Vec<u8>) -> u32 {
+    let compiled_boards = CompiledBoards::from_boards(boards);
 
     // now, search for the shortest prefix of |draws| that matches a corresponding bingo mask
     let mut draw_mask = 0u128;
     for draw in draws {
         draw_mask |= 1 << draw;
 
-        let found_bingo = bingo_masks.iter().find_map(|(bingo_mask, board_index)| {
-            if draw_mask & bingo_mask == *bingo_mask {
-                Some(board_index)
-            } else {
-                None
-            }
-        });
+        let found_bingo =
+            compiled_boards
+                .bingo_masks
+                .iter()
+                .find_map(|(bingo_mask, board_index)| {
+                    if draw_mask & bingo_mask == *bingo_mask {
+                        Some(board_index)
+                    } else {
+                        None
+                    }
+                });
 
         if let Some(winning_board_index) = found_bingo {
             // cool, we found our bingo. now, we need to sum all of the unmarked numbers
-            let undrawn_mask = !draw_mask;
-            let board_value_mask = board_value_masks[*winning_board_index];
+            return sum_unmarked_values(&compiled_boards, draw_mask, winning_board_index, draw);
+        }
+    }
 
-            // take the bitfield of all of the numbers in the board and zero out everything that
-            // has been drawn so far
-            let board_undrawn_value_mask = board_value_mask & undrawn_mask;
-            let unmarked_sum = (0..100).fold(0u32, |acc, elem| {
-                if board_undrawn_value_mask & (1 << elem) != 0 {
-                    acc + elem
-                } else {
-                    acc
-                }
-            });
+    panic!();
+}
 
-            return unmarked_sum * draw as u32;
+pub fn problem2(boards: Vec<Vec<u8>>, draws: Vec<u8>) -> u32 {
+    let count_boards = boards.len() as u32;
+    let compiled_boards = CompiledBoards::from_boards(boards);
+
+    // now, search for the shortest prefix of |draws| that matches a corresponding bingo mask
+    let mut draw_mask = 0u128;
+    let mut winning_board_mask = 0u128;
+    let all_boards_winning_mask = 2u128.pow(count_boards) - 1;
+    for draw in draws {
+        draw_mask |= 1 << draw;
+
+        let winning_board_indexes =
+            compiled_boards
+                .bingo_masks
+                .iter()
+                .filter_map(|(bingo_mask, board_index)| {
+                    if draw_mask & bingo_mask == *bingo_mask {
+                        Some(board_index)
+                    } else {
+                        None
+                    }
+                });
+
+        for winning_board_index in winning_board_indexes {
+            winning_board_mask |= 1 << winning_board_index;
+            if winning_board_mask == all_boards_winning_mask {
+                // cool, we found our last bingo. now, we need to sum all of the unmarked numbers
+                return sum_unmarked_values(&compiled_boards, draw_mask, winning_board_index, draw);
+            }
         }
     }
 
@@ -146,5 +207,40 @@ mod tests {
         }
 
         assert_eq!(problem1(boards, draws), 38913);
+    }
+
+    #[test]
+    fn problem2_real() {
+        let file = File::open(Path::new(DATA_PATH)).unwrap();
+        let reader = BufReader::new(file);
+        let mut lines = reader.lines();
+
+        let draws_line = lines.next().unwrap().unwrap();
+        let draws = draws_line
+            .split(',')
+            .map(|draw| draw.parse().unwrap())
+            .collect::<Vec<u8>>();
+
+        // skip a line to get to the first board
+        lines.next();
+
+        let mut boards: Vec<Vec<u8>> = Vec::with_capacity(100);
+        let mut current_board: Vec<u8> = Vec::with_capacity(ROWS * COLUMNS);
+        for line in lines.map(|l| l.unwrap()) {
+            if line.trim().len() == 0 {
+                boards.push(current_board);
+                current_board = Vec::with_capacity(ROWS * COLUMNS);
+                continue;
+            }
+
+            for value in line
+                .split(char::is_whitespace)
+                .filter(|v| v.trim().len() > 0)
+            {
+                current_board.push(value.parse().unwrap());
+            }
+        }
+
+        assert_eq!(problem2(boards, draws), 16836);
     }
 }
