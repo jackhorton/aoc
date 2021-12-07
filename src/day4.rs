@@ -109,7 +109,8 @@ pub fn problem2(boards: Vec<Vec<u8>>, draws: Vec<u8>) -> u32 {
     let count_boards = boards.len() as u32;
     let compiled_boards = CompiledBoards::from_boards(boards);
 
-    // now, search for the shortest prefix of |draws| that matches a corresponding bingo mask
+    // search for the board that will win last by remembering which boards we have
+    // seen that have already won until we find the last board to win.
     let mut draw_mask = 0u128;
     let mut winning_board_mask = 0u128;
     let all_boards_winning_mask = 2u128.pow(count_boards) - 1;

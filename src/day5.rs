@@ -63,8 +63,7 @@ pub fn problem1(vents: Vec<Vent>) -> usize {
                 None
             }
         })
-        .flatten()
-        .collect::<Vec<Point>>();
+        .flatten();
 
     let mut seen_points = HashMap::<Point, u32>::new();
     for point in vent_points {
@@ -84,12 +83,7 @@ pub fn problem2(vents: Vec<Vent>) -> usize {
                 None
             }
         })
-        .flatten()
-        .collect::<Vec<Point>>();
-
-    // for p in vent_points.iter().take(1000) {
-    //     println!("{:?}", p);
-    // }
+        .flatten();
 
     let mut seen_points = HashMap::<Point, u32>::new();
     for point in vent_points {
@@ -173,6 +167,6 @@ mod tests {
             })
             .collect();
 
-        assert_eq!(problem2(vents), 12041);
+        assert_eq!(problem2(vents), 20484);
     }
 }
