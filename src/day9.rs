@@ -138,7 +138,6 @@ pub fn problem2(height_map: Vec<Vec<u8>>) -> u32 {
         }
     }
 
-    println!("{:?}", basin_sizes);
     basin_sizes.iter().take(3).product()
 }
 
