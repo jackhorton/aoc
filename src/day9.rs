@@ -1,4 +1,7 @@
-use std::iter;
+use std::{
+    collections::{BinaryHeap, VecDeque},
+    iter,
+};
 
 fn start_index(index: usize) -> usize {
     match index {
@@ -14,13 +17,16 @@ fn end_index(length: usize, index: usize) -> usize {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct Coord {
     pub row: usize,
     pub col: usize,
 }
 
-fn surrounding_coords<'a, T>(height_map: &'a Vec<Vec<T>>, pos: &'a Coord) -> impl Iterator<Item = Coord> + 'a {
+fn surrounding_coords<'a, T>(
+    height_map: &'a Vec<Vec<T>>,
+    pos: &'a Coord,
+) -> impl Iterator<Item = Coord> + 'a {
     (start_index(pos.row)..=end_index(height_map.len(), pos.row))
         .flat_map(|row| {
             (start_index(pos.col)..=end_index(height_map[row].len(), pos.col))
@@ -30,7 +36,10 @@ fn surrounding_coords<'a, T>(height_map: &'a Vec<Vec<T>>, pos: &'a Coord) -> imp
         .filter(|coord| coord.col != pos.col || coord.row != pos.row)
 }
 
-fn basin_coords<'a, T>(height_map: &'a Vec<Vec<T>>, pos: &'a Coord) -> impl Iterator<Item = Coord> + 'a {
+fn basin_coords<'a, T>(
+    height_map: &'a Vec<Vec<T>>,
+    pos: &'a Coord,
+) -> impl Iterator<Item = Coord> + 'a {
     (start_index(pos.row)..=end_index(height_map.len(), pos.row))
         .flat_map(|row| {
             (start_index(pos.col)..=end_index(height_map[row].len(), pos.col))
@@ -64,78 +73,73 @@ pub fn problem1(height_map: Vec<Vec<u8>>) -> u32 {
     sum_low_point_height
 }
 
-fn problem2(height_map: Vec<Vec<u8>>) -> u32 {
-    let mut next_group_id = 0u32;
-    let mut group_id_map = Vec::<Vec<Option<u32>>>::with_capacity(height_map.len());
+fn search(
+    height_map: &Vec<Vec<u8>>,
+    start: Coord,
+    basin_id: u32,
+    basin_id_map: &mut Vec<Vec<Option<u32>>>,
+) -> u32 {
+    let mut q = VecDeque::new();
+    q.push_back(start);
+    let mut basin_size = 0u32;
+
+    while let Some(coord) = q.pop_front() {
+        if height_map[coord.row][coord.col] == 9 {
+            continue;
+        } else if basin_id_map[coord.row][coord.col].is_some() {
+            continue;
+        }
+
+        basin_id_map[coord.row][coord.col] = Some(basin_id);
+        basin_size += 1;
+
+        for candidate in basin_coords(&height_map, &coord) {
+            if basin_id_map[candidate.row][candidate.col].is_none()
+                && height_map[candidate.row][candidate.col] < 9
+            {
+                q.push_back(candidate);
+            }
+        }
+    }
+
+    basin_size
+}
+
+pub fn problem2(height_map: Vec<Vec<u8>>) -> u32 {
+    let mut next_basin_id = 0u32;
+    let mut basin_id_map: Vec<Vec<Option<u32>>> =
+        iter::repeat(iter::repeat(None).take(height_map[0].len()).collect())
+            .take(height_map.len())
+            .collect();
+    let mut basin_sizes = BinaryHeap::new();
 
     for row_index in 0..height_map.len() {
-        group_id_map.push(Vec::with_capacity(height_map[row_index].len()));
-
         for col_index in 0..height_map[row_index].len() {
             let height = height_map[row_index][col_index];
             assert!(height <= 9);
 
-            let group_id_map_value = if height == 9 {
-                None
-            } else {
-                let max_surrounding_value = basin_coords(&group_id_map, &Coord { row: row_index, col: col_index })
-                    .filter_map(|coord| group_id_map[coord.row][coord.col])
-                    .max();
-                
-                match max_surrounding_value {
-                    Some(contiguous_group_id) => Some(contiguous_group_id),
-                    None => {
-                        let new_group_id = next_group_id;
-                        next_group_id += 1;
-                        Some(new_group_id)
-                    }
+            match basin_id_map[row_index][col_index] {
+                Some(_) => continue,
+                None if height == 9 => continue,
+                _ => {
+                    let basin_size = search(
+                        &height_map,
+                        Coord {
+                            row: row_index,
+                            col: col_index,
+                        },
+                        next_basin_id,
+                        &mut basin_id_map,
+                    );
+                    next_basin_id += 1;
+                    basin_sizes.push(basin_size);
                 }
-            };
-            group_id_map[row_index].push(group_id_map_value);
-        }
-    }
-
-    for row in group_id_map.iter() {
-        for col in row.iter() {
-            match col {
-                Some(id) => print!("{:03} ", id),
-                None => print!("    "),
             }
         }
-        println!();
     }
 
-    // |group_id_map| will have some cases where there are contiguous basins with different IDs.
-    // We can eliminate these by backtracking through the ID map (from bottom-right to top-left)
-    // and always preferring the highest group ID of all of our neighbors
-    for row_index in (0..group_id_map.len()).rev() {
-        for col_index in (0..group_id_map[row_index].len()).rev() {
-            if let Some(current_group_id) = group_id_map[row_index][col_index] {
-                let max_adjacent_group_id = basin_coords(&group_id_map, &Coord { row: row_index, col: col_index })
-                    .filter_map(|coord| group_id_map[coord.row][coord.col])
-                    .max();
-                group_id_map[row_index][col_index] = match max_adjacent_group_id {
-                    Some(max_adjacent) => Some(max_adjacent),
-                    None => Some(current_group_id),
-                };
-            }
-            
-        }
-    }
-    
-    println!("After backtracking:");
-
-    for row in group_id_map.iter() {
-        for col in row.iter() {
-            match col {
-                Some(id) => print!("{:03} ", id),
-                None => print!("    "),
-            }
-        }
-        println!();
-    }
-
-    0
+    println!("{:?}", basin_sizes);
+    basin_sizes.iter().take(3).product()
 }
 
 #[cfg(test)]
@@ -178,6 +182,6 @@ mod tests {
     fn problem2_real() {
         let content = std::fs::read_to_string(DATA_PATH).unwrap();
         let height_map = parse_input(&content);
-        assert_eq!(problem2(height_map), 560);
+        assert_eq!(problem2(height_map), 959136);
     }
 }
