@@ -102,7 +102,7 @@ pub fn count_paths(
     allow_duplicate_small_node: bool,
 ) -> u32 {
     let mut paths = 0u32;
-    let mut connections_map: HashMap<CaveNode, Vec<CaveNode>> = HashMap::new();
+    let mut connections_map = HashMap::new();
 
     for (start, end) in connections {
         match *start {
