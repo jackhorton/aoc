@@ -1,6 +1,8 @@
 use std::collections::VecDeque;
 use std::ops::AddAssign;
 
+use crate::coord::{Coord, CoordIterator};
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum EnergyLevel {
     Dormant(u8),
@@ -21,82 +23,6 @@ impl From<char> for EnergyLevel {
         let c_val = c.to_digit(10).unwrap() as u8;
         assert!(c_val <= 9);
         EnergyLevel::Dormant(c_val)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Coord {
-    row: usize,
-    col: usize,
-}
-
-impl Coord {
-    fn to(self, end: Coord) -> impl Iterator<Item = Coord> {
-        (self.row..=end.row)
-            .flat_map(move |row| (self.col..=end.col).map(move |col| Coord { row, col }))
-    }
-}
-
-struct AdjacentCoords {
-    coord_range: Vec<Coord>,
-    coord_index: usize,
-}
-
-impl AdjacentCoords {
-    fn new<T>(map: &Vec<Vec<T>>, center: Coord) -> Self {
-        let top_left = match center {
-            Coord { row: 0, col: 0 } => center,
-            Coord { row: 0, col } => Coord {
-                row: 0,
-                col: col - 1,
-            },
-            Coord { row, col: 0 } => Coord {
-                row: row - 1,
-                col: 0,
-            },
-            Coord { row, col } => Coord {
-                row: row - 1,
-                col: col - 1,
-            },
-        };
-        let bottom_right = match center {
-            Coord { row, col } if row == map.len() - 1 && col == map[0].len() - 1 => center,
-            Coord { row, col } if row == map.len() - 1 => Coord { row, col: col + 1 },
-            Coord { row, col } if col == map[0].len() - 1 => Coord { row: row + 1, col },
-            Coord { row, col } => Coord {
-                row: row + 1,
-                col: col + 1,
-            },
-        };
-
-        AdjacentCoords {
-            coord_range: top_left.to(bottom_right).collect(),
-            coord_index: 0,
-        }
-    }
-}
-
-impl Iterator for AdjacentCoords {
-    type Item = Coord;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.coord_range.get(self.coord_index) {
-            Some(coord) => {
-                self.coord_index += 1;
-                Some(*coord)
-            }
-            _ => None,
-        }
-    }
-}
-
-trait AdjacentCoordIterator<T> {
-    fn adjacent_coords(&self, center: Coord) -> AdjacentCoords;
-}
-
-impl<T> AdjacentCoordIterator<T> for Vec<Vec<T>> {
-    fn adjacent_coords(&self, center: Coord) -> AdjacentCoords {
-        AdjacentCoords::new(&self, center)
     }
 }
 
@@ -140,7 +66,7 @@ fn do_flash_step(map: &mut Vec<Vec<EnergyLevel>>) -> u32 {
     }
 
     while let Some(flash_center) = q.pop_front() {
-        for coord in map.adjacent_coords(flash_center) {
+        for coord in map.surrounding_coords(flash_center) {
             if map[coord.row][coord.col] == EnergyLevel::Explosive {
                 continue;
             }
